@@ -1,0 +1,102 @@
+﻿ArchiveEntry "kpp_matching_fixed".
+
+Definitions.
+  R zw(). /* distance between the interface and bottom */
+  R D().   /* bathymetric depth */
+  R w().  /* turbulent velocity scale factor */
+  R G(R sigma, R a2, R a3) = (sigma+a2*sigma^2+a3*sigma^3).
+
+  HP computeNu ::= {
+    nu := *; ?nu>0;
+    dnu := *;
+  }.
+
+  HP computeBLD ::= {
+     h := D-zCr;
+     sigma := (D-zw())/h;
+     alpha := *; ?( 0<alpha & alpha<1);
+     zCr := alpha*zCr;
+  }.
+
+  HP computeK ::= {
+     { ?dnu<0;
+         a2 := -2+3*(nu)/(h*w());
+         a3 := 1-(nu)/(h*w());
+       ++
+       ?dnu>=0;
+         a2 := -2+3*(nu)/(h*w())+dnu/w();
+         a3 := 1-(nu)/(h*w())-dnu/w();
+     }
+     K := h*w()*G(sigma,a2,a3);
+  }.
+
+  B initialConditions() <-> (
+    D()>0 & D()>zw() & zw()>0 &
+    0<nu & K>0 &
+    w>0 &
+    zCr=zw()
+   ).
+End.
+
+ProgramVariables.
+  R zCr.        /* the depth at which the Richardson number is greater than the critical Richardson number  --continuous */
+  R h.           /* OBL depth -- discrete */
+  R sigma.   /* (D-zw)/h -- discrete */
+  R alpha.    /* zCr reduction factor */
+  R K.           /* diffusivity at interface */
+
+  /* shape function coefficients */
+  R a2.
+  R a3.
+
+  R nu.          /* interior diffusivity at sigma=1*/
+  R dnu.        /* interior diffusivity gradiant at sigma=1*/
+End.
+
+Problem.
+  initialConditions() ->
+  [
+    {   
+       /* 1. DDAs: */
+       computeBLD;
+       computeNu;
+       computeK;
+
+       /* 2. Continuous system: */
+       { zCr' = -zCr }
+    }*@invariant(K>0 & zw()>=zCr & zCr>0)
+  ](K>0)
+End.
+
+Tactic "kpp_matching_fixed: Proof 1".
+  implyR(1) ; loop({`K>0&zw()>=zCr&zCr>0`}, 1) ; <(
+  QE,
+  QE,
+  composeb(1) ; composeb(1) ; assignb(1) ; composeb(1) ; assignb(1) ; composeb(1) ; randomb(1) ; allR(1) ; composeb(1) ; testb(1) ; implyR(1) ; assignb(1) ; composeb(1) ; composeb(1) ; randomb(1) ; allR(1) ; composeb(1) ; testb(1) ; implyR(1) ; randomb(1) ; allR(1) ; composeb(1) ; composeb(1) ; choiceb(1) ; composeb(1.0) ; testb(1.0) ; andR(1) ; <(
+    implyR(1) ; composeb(1) ; assignb(1) ; assignb(1) ; assignb(1) ; boxAnd(1) ; andR(1) ; <(
+      dW(1) ; trueImply(1) ; QE,
+      boxAnd(1) ; andR(1) ; <(
+        dC({`zCr>0`}, 1) ; <(
+          trueAnd(1.0.1) ; dI(1),
+          dG({`{y'=0.5*y}`}, {`y^2*zCr=1`}, 1) ; dI(1.0) ; QE
+          ),
+        dG({`{y'=0.5*y}`}, {`y^2*zCr=1`}, 1) ; dI(1.0) ; QE
+        )
+      ),
+    composeb(1) ; testb(1) ; implyR(1) ; composeb(1) ; assignb(1) ; assignb(1) ; assignb(1) ; boxAnd(1) ; andR(1) ; <(
+      dW(1) ; trueImply(1) ; QE,
+      boxAnd(1) ; andR(1) ; <(
+        dC({`zCr>0`}, 1) ; <(
+          trueAnd(1.0.1) ; dI(1),
+          dG({`{y'=0.5*y}`}, {`y^2*zCr=1`}, 1) ; dI(1.0) ; QE
+          ),
+        dG({`{y'=0.5*y}`}, {`y^2*zCr=1`}, 1) ; dI(1.0) ; QE
+        )
+      )
+    )
+  )
+End.
+       
+
+End.
+       
